@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tags — motion</title>
+  <style>
+    :root {
+      --ink: #3f3f48;
+      --ink-soft: #8d8d98;
+      --chip: #f1f1f6;
+      --line: #e7e7ec;
+      --card: #ffffff;
+      --shadow: 0 22px 50px rgba(28, 28, 48, 0.08), 0 2px 8px rgba(28, 28, 48, 0.04);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --fly: cubic-bezier(0.16, 0.84, 0.24, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #fff;
+      color: var(--ink);
+      font-family: "SF Pro Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 48px 24px 72px;
+    }
+
+    .stage {
+      width: min(386px, 100%);
+    }
+
+    .label {
+      margin: 0 0 14px 2px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: #9b9ba6;
+    }
+
+    .selected,
+    .pool {
+      background: var(--card);
+      border-radius: 16px;
+    }
+
+    .selected {
+      width: 100%;
+      min-height: 56px;
+      padding: 10px;
+      border: 1px solid #ececf1;
+      box-shadow: 0 1px 2px rgba(20, 20, 40, 0.03);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      align-content: flex-start;
+    }
+
+    .pool {
+      margin-top: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 12px;
+    }
+
+    .pool:empty {
+      display: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .chip {
+      appearance: none;
+      border: 0;
+      margin: 0;
+      width: fit-content;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 10px;
+      font: 500 14.5px/1 "SF Pro Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #4a4a55;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      cursor: pointer;
+      background: var(--chip);
+      transition: background 160ms var(--ease), box-shadow 160ms var(--ease), transform 160ms var(--ease);
+    }
+
+    .chip-selected {
+      background: var(--tone, #fff);
+      color: var(--ink, #4a4a55);
+      border: 1px solid color-mix(in srgb, var(--ink, #4a4a55) 16%, white);
+      box-shadow: 0 1px 1px rgba(20, 20, 40, 0.04), 0 6px 14px rgba(20, 20, 40, 0.05);
+      padding: 0 10px 0 14px;
+      cursor: default;
+    }
+
+    .chip .x {
+      width: 22px;
+      height: 22px;
+      margin-right: -4px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #8e8e99;
+      font: 500 16px/1 "SF Pro Text", -apple-system, sans-serif;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    .chip-selected .x { color: var(--ink, #8e8e99); }
+    .chip .x:hover { color: var(--ink, #2c2c34); background: color-mix(in srgb, var(--ink, #2c2c34) 10%, transparent); }
+
+    body.is-live .chip-pool:hover {
+      background: #fff;
+      box-shadow: 0 8px 18px rgba(20, 20, 40, 0.1);
+      transform: translateY(-3px);
+    }
+
+    .chip.is-hot {
+      background: #fff;
+      box-shadow: 0 10px 22px rgba(20, 20, 40, 0.12);
+      transform: translateY(-4px) scale(1.03);
+      z-index: 2;
+    }
+
+    .flyer {
+      position: fixed;
+      z-index: 20;
+      margin: 0;
+      pointer-events: none;
+      height: 36px;
+      padding: 0 10px 0 14px;
+      border-radius: 10px;
+      border: 1px solid #e6e6ec;
+      background: #fff;
+      box-shadow: 0 16px 30px rgba(20, 20, 40, 0.16);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+      font: 500 14.5px/1 "SF Pro Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #4a4a55;
+      white-space: nowrap;
+    }
+
+    .flyer[hidden] {
+      display: none;
+    }
+
+    .flyer i {
+      font-style: normal;
+      color: #8e8e99;
+      font-weight: 500;
+    }
+
+    .flyer.is-returning i {
+      animation: hide-mark 640ms linear forwards;
+    }
+
+    @keyframes hide-mark {
+      0%, 55% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .chip, .flyer { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <p class="label">MY TOOLS LIBRARY</p>
+    <div class="selected" id="selected" aria-label="Selected tools"></div>
+    <div class="pool" id="pool" aria-label="Suggested tools"></div>
+  </main>
+
+  <div class="flyer" id="flyer" hidden><span></span><i>×</i></div>
+  <script>
+    const ROWS = [
+      ["Figma", "Cursor AI", "Claude Code"],
+      ["Framer", "Figma Make", "GitHub"],
+      ["Adobe Creative Cloud", "Vercel"],
+      ["Lovable", "PostHog", "JIRA"],
+      ["ProtoPie", "Maze", "User Testing.com"]
+    ];
+    const PASTELS = {
+      "Figma": { bg: "#FDE2D6", ink: "#8C4A36" },
+      "Cursor AI": { bg: "#E4DFF8", ink: "#534A78" },
+      "Claude Code": { bg: "#F8EBD4", ink: "#7A5B32" },
+      "Framer": { bg: "#F8D7E8", ink: "#8A3E66" },
+      "Adobe Creative Cloud": { bg: "#F8D6D6", ink: "#8A4040" },
+      "Figma Make": { bg: "#E8D9F8", ink: "#684888" },
+      "GitHub": { bg: "#DCEBDD", ink: "#3E6848" },
+      "Vercel": { bg: "#D6E8F8", ink: "#3A5878" },
+      "Lovable": { bg: "#D8F3E8", ink: "#2F6B56" },
+      "PostHog": { bg: "#F8F0C8", ink: "#74641A" },
+      "JIRA": { bg: "#D4E6FB", ink: "#2E5278" },
+      "ProtoPie": { bg: "#FDE8C8", ink: "#7A5420" },
+      "Maze": { bg: "#DDDFF8", ink: "#4A4E88" },
+      "User Testing.com": { bg: "#D4F0EA", ink: "#2A6860" }
+    };
+    const POOL = ROWS.flat();
+
+    const selectedEl = document.getElementById("selected");
+    const poolEl = document.getElementById("pool");
+    const flyer = document.getElementById("flyer");
+
+    let selected = [];
+    let pool = [...POOL];
+    let busy = false;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    function chipButton(name, kind) {
+      const chip = document.createElement(kind === "selected" ? "div" : "button");
+      if (kind !== "selected") chip.type = "button";
+      chip.className = `chip chip-${kind}`;
+      chip.dataset.tag = name;
+      const label = document.createElement("span");
+      label.textContent = name;
+      chip.append(label);
+      if (kind === "selected") {
+        const tone = PASTELS[name];
+        if (tone) {
+          chip.style.setProperty("--tone", tone.bg);
+          chip.style.setProperty("--ink", tone.ink);
+        }
+        const close = document.createElement("button");
+        close.type = "button";
+        close.className = "x";
+        close.dataset.close = name;
+        close.setAttribute("aria-label", `Remove ${name}`);
+        close.textContent = "×";
+        chip.append(close);
+      } else {
+        chip.setAttribute("aria-label", `Add ${name}`);
+      }
+      return chip;
+    }
+
+    function render() {
+      selectedEl.replaceChildren(...selected.map((name) => chipButton(name, "selected")));
+      poolEl.replaceChildren(...pool.map((name) => chipButton(name, "pool")));
+    }
+
+    function capture() {
+      const map = new Map();
+      document.querySelectorAll("[data-tag]").forEach((el) => {
+        map.set(el.dataset.tag, el.getBoundingClientRect());
+      });
+      return map;
+    }
+
+    function slideOthers(before, skip) {
+      if (reduced) return;
+      document.querySelectorAll("[data-tag]").forEach((el) => {
+        if (el.dataset.tag === skip) return;
+        const prev = before.get(el.dataset.tag);
+        if (!prev) return;
+        const next = el.getBoundingClientRect();
+        const dx = prev.left - next.left;
+        const dy = prev.top - next.top;
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+        el.animate(
+          [
+            { transform: `translate(${dx}px, ${dy}px)` },
+            { transform: "translate(0, 0)" }
+          ],
+          { duration: 520, easing: "cubic-bezier(0.22, 1.05, 0.36, 1)" }
+        );
+      });
+    }
+
+    function placeFlyer(rect, name, entering) {
+      flyer.getAnimations().forEach((anim) => anim.cancel());
+      flyer.classList.toggle("is-returning", !entering);
+      flyer.hidden = false;
+      flyer.querySelector("span").textContent = name;
+      flyer.style.left = `${rect.left}px`;
+      flyer.style.top = `${rect.top}px`;
+      flyer.style.width = `${rect.width}px`;
+      flyer.style.height = `${rect.height}px`;
+      const tone = PASTELS[name];
+      if (tone) {
+        flyer.style.setProperty("--tone", tone.bg);
+        flyer.style.setProperty("--ink", tone.ink);
+      }
+    }
+
+    async function fly(from, to, name, entering) {
+      placeFlyer(from, name, entering);
+      if (reduced) {
+        flyer.hidden = true;
+        flyer.classList.remove("is-returning");
+        return;
+      }
+      const dx = to.left - from.left;
+      const dy = to.top - from.top;
+      const tilt = Math.max(-8, Math.min(14, dx * 0.05 + (dy < 0 ? 9 : 12)));
+      const lift = dy < 0 ? -18 : 12;
+      const startWidth = from.width;
+      const endWidth = to.width;
+      const tone = PASTELS[name]?.bg || "#ffffff";
+      const gray = "#f1f1f6";
+      flyer.style.width = `${startWidth}px`;
+      const anim = flyer.animate(
+        [
+          {
+            transform: "translate(0px, 0px) rotate(0deg) scale(0.98)",
+            width: `${startWidth}px`,
+            background: entering ? gray : tone,
+            color: entering ? "#4a4a55" : (PASTELS[name]?.ink || "#4a4a55"),
+            boxShadow: "0 10px 20px rgba(20, 20, 40, 0.12)",
+            offset: 0
+          },
+          {
+            transform: `translate(${dx * 0.46}px, ${dy * 0.32 + lift}px) rotate(${tilt}deg) scale(1.06)`,
+            width: `${(startWidth + endWidth) / 2}px`,
+            background: entering ? gray : tone,
+            color: "#4a4a55",
+            boxShadow: "0 18px 34px rgba(20, 20, 40, 0.16)",
+            offset: 0.46
+          },
+          {
+            transform: `translate(${dx}px, ${dy}px) rotate(0deg) scale(1)`,
+            width: `${endWidth}px`,
+            background: entering ? tone : gray,
+            color: entering ? (PASTELS[name]?.ink || "#4a4a55") : "#4a4a55",
+            boxShadow: entering
+              ? "0 6px 14px rgba(20, 20, 40, 0.08)"
+              : "0 1px 2px rgba(20, 20, 40, 0.04)",
+            offset: 1
+          }
+        ],
+        { duration: 640, easing: "cubic-bezier(0.16, 0.84, 0.28, 1)", fill: "forwards" }
+      );
+      await anim.finished;
+      anim.cancel();
+      flyer.hidden = true;
+      flyer.classList.remove("is-returning");
+      flyer.style.transform = "";
+    }
+
+    async function lift(el) {
+      if (reduced || !el) return;
+      el.classList.add("is-hot");
+      await sleep(170);
+    }
+
+    async function transfer(name, toSelected) {
+      if (busy) return;
+      busy = true;
+      const source = document.querySelector(`[data-tag="${CSS.escape(name)}"]`);
+      if (!source) {
+        busy = false;
+        return;
+      }
+      const before = capture();
+      await lift(source);
+      const from = source.getBoundingClientRect();
+
+      if (toSelected) {
+        pool = pool.filter((tag) => tag !== name);
+        selected = [...selected, name];
+      } else {
+        selected = selected.filter((tag) => tag !== name);
+        pool = [name, ...pool.filter((tag) => tag !== name)];
+      }
+
+      render();
+      const dest = document.querySelector(`[data-tag="${CSS.escape(name)}"]`);
+      if (!dest) {
+        await dismiss(from, name, false);
+        slideOthers(before, name);
+        busy = false;
+        return;
+      }
+      dest.style.visibility = "hidden";
+      const to = dest.getBoundingClientRect();
+      slideOthers(before, name);
+      await fly(from, to, name, toSelected);
+      dest.style.visibility = "";
+      busy = false;
+    }
+
+    async function dismiss(from, name) {
+      placeFlyer(from, name, false);
+      if (reduced) {
+        flyer.hidden = true;
+        return;
+      }
+      const anim = flyer.animate(
+        [
+          { transform: "translate(0, 0) scale(1)", opacity: 1 },
+          { transform: "translate(0, -18px) scale(0.92)", opacity: 0 }
+        ],
+        { duration: 320, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" }
+      );
+      await anim.finished;
+      flyer.hidden = true;
+    }
+
+    function reset() {
+      selected = [];
+      pool = [...POOL];
+      render();
+    }
+
+    selectedEl.addEventListener("click", (event) => {
+      const close = event.target.closest("[data-close]");
+      if (!close || busy) return;
+      transfer(close.dataset.close, false);
+    });
+
+    poolEl.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-tag]");
+      if (!chip || busy) return;
+      transfer(chip.dataset.tag, true);
+    });
+
+    document.body.classList.add("is-live");
+    reset();
+  </script>
+</body>
+</html>
